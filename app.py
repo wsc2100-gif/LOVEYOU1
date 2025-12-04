@@ -54,8 +54,8 @@ system_instruction = """
 </footer>
 
 <script src="script.js"></script>
-"""
-# ---------------------------------------------------------
+
+
 
 model = genai.GenerativeModel(
     model_name="gemini-1.5-flash", # 或 gemini-1.5-pro
@@ -192,3 +192,4 @@ return `
         <p><strong>AI 解讀：</strong>${interpretation}</p>
     </div>
 `;
+"""
