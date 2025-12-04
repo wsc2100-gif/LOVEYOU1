@@ -185,3 +185,10 @@ if (riskLevel === 2) {
     riskScoreElement.className = 'low-risk';
     riskScoreElement.innerHTML = `✅ 總體風險等級：**低風險** - 目前未偵測到明顯的詐騙模式。`;
 }
+return `
+    <div class="alert-item">
+        <h4>${icon} ${title}</h4>
+        <p><strong>偵測結果：</strong>${detection}</p>
+        <p><strong>AI 解讀：</strong>${interpretation}</p>
+    </div>
+`;
