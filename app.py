@@ -93,3 +93,95 @@ if prompt := st.chat_input("請輸入或是貼上可疑的對話內容..."):
         
     except Exception as e:
         st.error(f"發生錯誤，請稍後再試：{e}")
+if (input.trim() === '') {
+    alert('請貼上對話內容才能進行分析。');
+    return;
+}
+
+// 初始化結果區塊
+resultSection.classList.remove('hidden');
+document.getElementById('analysisDetails').innerHTML = '';
+document.getElementById('keywordCloud').innerHTML = '';
+
+// 將輸入轉為小寫，方便比對
+const lowerInput = input.toLowerCase();
+
+let moneyCount = 0;
+let emotionCount = 0;
+let riskLevel = 0; // 0=低, 1=中, 2=高
+
+const analysisDetails = document.getElementById('analysisDetails');
+const keywordCloud = document.getElementById('keywordCloud');
+
+// --- 1. 關鍵詞計數與詞雲生成 ---
+const detectedKeywords = [];
+
+for (const type in keywords) {
+    keywords[type].forEach(word => {
+        const regex = new RegExp(word, 'g');
+        const matches = lowerInput.match(regex);
+        
+        if (matches) {
+            matches.forEach(() => {
+                detectedKeywords.push({ word: word, type: type });
+                if (type === 'money') moneyCount++;
+                if (type === 'emotion') emotionCount++;
+            });
+        }
+    });
+}
+
+// 隨機排列並顯示關鍵詞
+detectedKeywords.sort(() => 0.5 - Math.random()).forEach(item => {
+    const span = document.createElement('span');
+    span.textContent = item.word;
+    span.className = `keyword ${item.type}`;
+    keywordCloud.appendChild(span);
+});
+
+// --- 2. 風險判定與模式分析 ---
+let analysisOutput = '';
+
+[span_2](start_span)// 警訊 1: 虛擬的完美 vs. 真實的迴避[span_2](end_span)
+let avoidanceDetected = exclusionPhrases.some(phrase => lowerInput.includes(phrase.toLowerCase()));
+if (avoidanceDetected) {
+    analysisOutput += createAlertItem('虛擬的完美 vs. 真實的迴避', '偵測到：對話中包含「拒絕視訊」或「在國外」等詞彙。', '風險：假帳號通常會拒絕在真實世界連結。請查核照片來源。', 'warning');
+    riskLevel = Math.max(riskLevel, 1);
+} else {
+    analysisOutput += createAlertItem('虛擬的完美 vs. 真實的迴避', '偵測到：**未明確偵測到**明顯的迴避詞彙。', '請仍保持警惕，並使用「以圖搜圖」工具查核其照片來源。', 'info');
+}
+
+[span_3](start_span)[span_4](start_span)// 警訊 2: 情感高峰 vs. 金錢切入 (致命交叉點)[span_3](end_span)[span_4](end_span)
+// 模擬判斷：情感詞與金錢詞都高，且金錢詞佔比超過一定門檻 (模擬交叉點)
+if (emotionCount > 5 && moneyCount > 3) {
+    analysisOutput += createAlertItem('情感高峰 vs. 金錢切入 (致命交叉)', `偵測到：**親密詞彙 (e.g., 寶貝) ${emotionCount} 次**，與**金錢詞彙 (e.g., 投資) ${moneyCount} 次**同時出現。`, '核心轉折：這極度符合情感親密度達到頂點後，金錢要求急遽上升的「致命交叉點」模式。這是一場精心設計的心理戰！', 'critical');
+    riskLevel = Math.max(riskLevel, 2); // 最高風險
+} else if (emotionCount > 5 && moneyCount > 0) {
+    analysisOutput += createAlertItem('情感高峰 vs. 金錢切入 (早期訊號)', `偵測到：親密詞彙多，金錢詞彙 (e.g., 投資, 賺錢) 開始出現 (${moneyCount} 次)。`, '早期訊號：詐騙集團正在進入「養豬」的後期，準備切入主題。請立即停止投入情感！', 'medium');
+    riskLevel = Math.max(riskLevel, 1);
+} else {
+     analysisOutput += createAlertItem('情感高峰 vs. 金錢切入 (未明顯偵測)', '偵測到：情感詞彙或金錢詞彙數量均不高。', '持續觀察：這可能處於「養豬」的早期，尚未引入金錢話題。請持續警惕。', 'info');
+}
+
+[span_5](start_span)[span_6](start_span)// 警訊 3: 獲利小甜頭 vs. 加碼大要求[span_5](end_span)[span_6](end_span)
+if (lowerInput.includes('先投一點點') || lowerInput.includes('提領') && moneyCount > 5) {
+    analysisOutput += createAlertItem('獲利小甜頭 vs. 加碼大要求', '偵測到：「先試試看」、「可提領」等話術，與高頻金錢詞彙重疊。', '警惕：這是為了建立信任的「給點甜頭」階段。所有需要你不斷投錢才能領回本金的「投資」都是騙局。', 'critical');
+    riskLevel = Math.max(riskLevel, 2);
+} else {
+    analysisOutput += createAlertItem('獲利小甜頭 vs. 加碼大要求', '偵測到：**未明確偵測到**明顯的初期「小甜頭」話術。', '請保持警惕，如果未來出現「保證獲利」或「保證金/稅金」等要求，請立即停止。', 'info');
+}
+
+analysisDetails.innerHTML = analysisOutput;
+
+// --- 3. 總體風險評分顯示 ---
+const riskScoreElement = document.getElementById('riskScore');
+if (riskLevel === 2) {
+    riskScoreElement.className = 'high-risk';
+    riskScoreElement.innerHTML = `🚨 總體風險等級：**高風險** - 您的對話極度符合「殺豬盤」模式。`;
+} else if (riskLevel === 1) {
+    riskScoreElement.className = 'medium-risk';
+    riskScoreElement.innerHTML = `⚠️ 總體風險等級：**中等風險** - 偵測到數個早期警訊，請立即警惕！`;
+} else {
+    riskScoreElement.className = 'low-risk';
+    riskScoreElement.innerHTML = `✅ 總體風險等級：**低風險** - 目前未偵測到明顯的詐騙模式。`;
+}
