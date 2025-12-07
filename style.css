@@ -789,7 +789,13 @@ body {
 
 
 /* Responsive */
+/* Responsive */
 @media (max-width: 768px) {
+    body {
+        overflow: auto;
+        height: auto;
+    }
+
     .app-container {
         flex-direction: column;
         height: auto;
@@ -798,34 +804,102 @@ body {
 
     .sidebar {
         width: 100%;
-        padding: 16px;
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
+        padding: 12px 16px;
+        flex-direction: column;
+        gap: 16px;
         border-right: none;
         border-bottom: var(--glass-border);
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(12px);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
     }
 
     .logo-section {
         margin-bottom: 0;
+        width: 100%;
     }
 
+    /* Mobile Navigation: Horizontal Scroll */
     .nav-menu {
-        display: none;
-        /* Hide nav entries on mobile for now */
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+        overflow-x: auto;
+        gap: 12px;
+        padding-bottom: 4px;
+        scrollbar-width: none;
+        /* Firefox */
+        -ms-overflow-style: none;
+        /* IE */
     }
 
+    .nav-menu::-webkit-scrollbar {
+        display: none;
+    }
+
+    .nav-divider {
+        display: none;
+    }
+
+    .nav-item {
+        flex: 0 0 auto;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 100px;
+        padding: 8px 16px;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .nav-item.active {
+        background: rgba(59, 130, 246, 0.15);
+    }
+
+    .main-content {
+        padding: 24px 16px;
+        overflow: visible;
+    }
+
+    .top-header {
+        margin-bottom: 24px;
+        justify-content: center;
+        /* Center device info on mobile */
+    }
+
+    /* Stack Grids */
     .cards-container,
-    .split-container,
     .info-panel ul {
         grid-template-columns: 1fr;
     }
 
     .split-container {
+        display: flex;
+        flex-direction: column;
         height: auto;
+    }
+
+    .upload-box,
+    .analysis-box,
+    .input-panel {
+        min-height: 300px;
     }
 
     .hero-section h1 {
         font-size: 32px;
+        padding: 0 16px;
+    }
+
+    .view-header h2 {
+        font-size: 24px;
+    }
+
+    /* Fix for inline-styled grids in JS generated content */
+    div[style*="grid-template-columns: 1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    .stats-container {
+        flex-direction: column;
     }
 }
