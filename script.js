@@ -286,22 +286,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearChatBtn = document.getElementById('clear-chat-btn');
     const chatAnalysisResult = document.getElementById('chat-analysis-result');
 
+    // API Key Handling - Simplified (Hidden from UI)
+    const demoApiKey = "AIzaSyDtGDVsKqEHpSDH51DSmWTODbhcupFXetA";
+
+    // We don't need to load it into an input anymore.
+    // Logic will check localStorage or use default directly when analyzing.
+
     if (analyzeChatBtn && chatAnalysisResult) {
         clearChatBtn.addEventListener('click', () => {
             if (chatInput) {
                 chatInput.value = '';
-                chatInput.focus(); // Focus for quick re-entry
+                chatInput.focus();
             }
             resetChatAnalysis();
         });
 
-        analyzeChatBtn.addEventListener('click', () => {
+        analyzeChatBtn.addEventListener('click', async () => {
             const text = chatInput ? chatInput.value.trim() : '';
             if (!text) {
                 alert('請先輸入對話內容');
                 return;
             }
-            startChatAnalysis(text);
+
+            // Retrieve key directly here
+            const apiKey = localStorage.getItem('gemini_api_key') || demoApiKey;
+            if (!apiKey) {
+                alert('API Key 遺失，請聯繫管理員');
+                return;
+            }
+
+            await startChatAnalysis(text, apiKey);
         });
 
         function resetChatAnalysis() {
@@ -317,336 +331,246 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
-        function startChatAnalysis(text) {
+        async function startChatAnalysis(text, apiKey) {
             chatAnalysisResult.classList.remove('results-mode');
             chatAnalysisResult.innerHTML = `
                 <div class="result-content">
                     <div class="loading-spinner"></div>
-                    <h3>正在分析語意特徵...</h3>
-                    <p>正在比對詐騙腳本資料庫與心理語言模型</p>
+                    <h3>正在進行語意分析...</h3>
+                    <p>Google Gemini AI 正在剖析對話脈絡與潛在威脅</p>
                 </div>
             `;
 
-            setTimeout(() => {
-                showChatResults(text);
-            }, 2000);
+            try {
+                const result = await GeminiService.analyze(text, apiKey);
+                showChatResults(result);
+            } catch (error) {
+                console.error("Analysis Error:", error);
+                chatAnalysisResult.innerHTML = `
+                    <div class="result-content">
+                        <div class="icon-circle" style="color: #ef4444; background: rgba(239, 68, 68, 0.1);">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <h3>分析失敗</h3>
+                        <p>${error.message || '無法連接至 AI 服務，請檢查您的 API Key 或網路連線。'}</p>
+                        <button class="re-scan-btn" onclick="resetChatAnalysis()" style="position: static; transform: none; margin-top: 16px;">重試</button>
+                    </div>
+                `;
+            }
         }
 
-        function showChatResults(text) {
-            // Dynamic logic checking for keywords
-            const textLower = text.toLowerCase();
-
-            // Keyword Categories
-            // Keyword Categories
-            // Removed generic '銀行', '帳戶' to prevent false positives in emotional/investment scams
-            const phishingKeywords = ['國泰', '世華', '凍結', '解鎖', '身分證', '健保卡', '證件', '登入', '驗證碼', '異常', '涉嫌', '洗錢', '客服', 'service'];
-            const emotionalKeywords = ['寶貝', '親愛的', '老公', '老婆', '緣分'];
-
-            // Split Financial into Investment vs Emergency
-            const investmentKeywords = ['投資', '獲利', '穩賺', '保證', '規劃', '未來', '銀行', '帳戶', '虛擬貨幣', '比特幣'];
-            const emergencyKeywords = ['匯款', '轉帳', '借錢', '手術', '車禍', '10萬', '十萬', '急用', '應急', '救命'];
-
-            // Detection Logic
-            const foundPhishing = phishingKeywords.filter(k => textLower.includes(k));
-            const foundEmotional = emotionalKeywords.filter(k => textLower.includes(k));
-            const foundInvestment = investmentKeywords.filter(k => textLower.includes(k));
-            const foundEmergency = emergencyKeywords.filter(k => textLower.includes(k));
-
-            // Scenarios
-            const isPhishing = foundPhishing.length > 0;
-            // Pig Butchering: Intimacy + Investment/Profit talk
-            const isPigButchering = foundEmotional.length > 0 && foundInvestment.length > 0;
-            // Emergency Scam: Intimacy + Urgent money request
-            const isEmergencyScam = (foundEmotional.length > 0 && foundEmergency.length > 0) || (foundEmergency.length > 0 && text.length > 200);
-
+        function showChatResults(data) {
             chatAnalysisResult.classList.add('results-mode');
-            let resultHTML = '';
 
-            if (isPhishing) {
-                // --- SCENARIO 1: Phishing / Fake Bank ---
-                resultHTML = `
+            const isHighRisk = data.riskScore > 50;
+            const scoreColor = isHighRisk ? '#ef4444' : '#10b981';
+            const scoreBg = isHighRisk ? 'rgba(239, 68, 68, 0.05)' : 'rgba(16, 185, 129, 0.05)';
+            const scoreBorder = isHighRisk ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)';
+            const iconClass = isHighRisk ? 'fa-triangle-exclamation' : 'fa-circle-check';
+
+            const statsHTML = data.anomalies.length > 0 ? `
+                 <div class="stat-box danger">
+                    <div class="stat-value">${data.anomalies.length} 項</div>
+                    <div class="stat-label">偵測異常數量</div>
+                </div>
+            ` : `
+                 <div class="stat-box">
+                    <div class="stat-value">0 項</div>
+                    <div class="stat-label">偵測異常數量</div>
+                </div>
+            `;
+
+            const anomaliesHTML = data.anomalies.map(anomaly => `
+                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
+                    <span style="color: #ef4444; margin-top: 4px;">●</span>
+                    <span>${anomaly}</span>
+                </li>
+            `).join('');
+
+            const recommendationsHTML = (data.recommendations || []).map(rec => `
+                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
+                    <span style="color: #10b981; margin-top: 4px;">●</span>
+                    <span>${rec}</span>
+                </li>
+            `).join('');
+
+            const resultHTML = `
                 <div class="result-content" style="padding: 24px; text-align: left;">
-                    <div class="score-card" style="background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2);">
+                    <div class="score-card" style="background: ${scoreBg}; border-color: ${scoreBorder};">
                         <div class="score-info">
-                            <i class="fa-solid fa-building-columns score-icon" style="color: #ef4444;"></i>
+                            <i class="fa-solid ${iconClass} score-icon" style="color: ${scoreColor};"></i>
                             <div class="score-text">
-                                <h3 style="color: #ef4444;">假冒機構/釣魚詐騙</h3>
-                                <p>風險等級：極高風險</p>
+                                <h3 style="color: ${scoreColor};">${data.category || (isHighRisk ? '偵測到潛在風險' : '未發現明顯風險')}</h3>
+                                <p>風險等級：${data.riskLevel}</p>
                             </div>
                         </div>
                         <div class="score-value">
-                            <div class="score-number" style="color: #ef4444;">98<span style="font-size:14px; color:#94a3b8; font-weight:400;">/100</span></div>
+                            <div class="score-number" style="color: ${scoreColor};">${data.riskScore}<span style="font-size:14px; color:#94a3b8; font-weight:400;">/100</span></div>
                             <div class="score-label">威脅評分</div>
                         </div>
                     </div>
 
                     <div class="stats-container">
-                        <div class="stat-box danger">
-                            <div class="stat-value">${Math.max(3, foundPhishing.length)} 項</div>
-                            <div class="stat-label">偵測異常數量</div>
-                        </div>
+                        ${statsHTML}
                         <div class="stat-box">
-                            <div class="stat-value">個資竊盜</div>
-                            <div class="stat-label">風險模型類別</div>
-                        </div>
-                         <div class="stat-box">
-                            <div class="stat-value">官方偽冒</div>
-                            <div class="stat-label">語氣急迫性</div>
+                            <div class="stat-value">${data.category || '一般'}</div>
+                            <div class="stat-label">風險類別</div>
                         </div>
                     </div>
 
                     <div class="report-section">
                         <div class="section-title"><i class="fa-solid fa-file-contract"></i> 分析摘要</div>
-                        <p class="summary-text">
-                            此訊息具有「假冒官方機構釣魚」的高度特徵。內容聲稱受害者的「銀行帳戶被凍結」或「涉及非法案件」，利用民眾對法律後果的恐懼心理。接著要求受害者提供極度敏感的個人資料（如身分證正反面、存摺照片），或引導至非官方的電子信箱/連結。這類手法旨在竊取您的身分資料以進行盜用，或詐騙您的銀行憑證。
-                        </p>
+                        <p class="summary-text">${data.summary}</p>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                        ${data.anomalies.length > 0 ? `
                         <div>
                              <div class="section-title" style="color:#ef4444;"><i class="fa-solid fa-bug"></i> 偵測到的異常特徵</div>
                             <ul style="list-style: none; padding: 0;">
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #ef4444; margin-top: 4px;">●</span>
-                                    <span>未經核實即聲稱「帳戶凍結」或「涉及刑案」，製造恐慌。</span>
-                                </li>
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #ef4444; margin-top: 4px;">●</span>
-                                    <span>透過非官方管道（如一般Email、LINE）要求傳送證件照片。</span>
-                                </li>
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #ef4444; margin-top: 4px;">●</span>
-                                    <span>索取身分證正反面、健保卡等足以冒用身分的完整個資。</span>
-                                </li>
+                                ${anomaliesHTML}
                             </ul>
                         </div>
+                        ` : ''}
                         
                         <div>
                              <div class="section-title" style="color:#10b981;"><i class="fa-solid fa-shield-halved"></i> 建議採取行動</div>
                             <ul style="list-style: none; padding: 0;">
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #10b981; margin-top: 4px;">●</span>
-                                    <span>絕對不要回傳任何證件照片或個人資料。</span>
-                                </li>
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #10b981; margin-top: 4px;">●</span>
-                                    <span>直接撥打銀行官方客服電話（信用卡背面的號碼）查證，切勿撥打信中提供的號碼。</span>
-                                </li>
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #10b981; margin-top: 4px;">●</span>
-                                    <span>若已提供資料，請立即報警並通知銀行掛失證件。</span>
-                                </li>
+                                ${recommendationsHTML}
                             </ul>
                         </div>
                     </div>
-                </div>`;
-            } else if (isPigButchering) {
-                // --- SCENARIO 2: Pig Butchering / Investment Scam (NEW) ---
-                resultHTML = `
-                <div class="result-content" style="padding: 24px; text-align: left;">
-                    <div class="score-card" style="background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2);">
-                        <div class="score-info">
-                            <i class="fa-solid fa-heart-crack score-icon" style="color: #ef4444;"></i>
-                            <div class="score-text">
-                                <h3 style="color: #ef4444;">交友投資詐騙 (殺豬盤)</h3>
-                                <p>風險等級：極高風險</p>
-                            </div>
-                        </div>
-                        <div class="score-value">
-                            <div class="score-number" style="color: #ef4444;">92<span style="font-size:14px; color:#94a3b8; font-weight:400;">/100</span></div>
-                            <div class="score-label">威脅評分</div>
-                        </div>
-                    </div>
-
-                    <div class="stats-container">
-                        <div class="stat-box danger">
-                            <div class="stat-value">${Math.max(4, foundInvestment.length)} 項</div>
-                            <div class="stat-label">偵測異常數量</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value">假交友投資</div>
-                            <div class="stat-label">風險模型類別</div>
-                        </div>
-                         <div class="stat-box">
-                            <div class="stat-value">誘惑</div>
-                            <div class="stat-label">語氣急迫性</div>
-                        </div>
-                    </div>
-
-                    <div class="report-section">
-                        <div class="section-title"><i class="fa-solid fa-file-contract"></i> 分析摘要</div>
-                        <p class="summary-text">
-                            此對話呈現典型「殺豬盤 (Pig Butchering)」特徵。詐騙者利用長時間的情感培養（親密稱呼、規劃未來）來降低您的戒心，隨後將話題引導至「投資獲利」、「為未來存錢」等金錢議題。這種「先談情、後談錢」的手法，目的是誘騙您將資金投入其控制的假投資平台。
-                        </p>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-                        <div>
-                             <div class="section-title" style="color:#ef4444;"><i class="fa-solid fa-bug"></i> 偵測到的異常特徵</div>
-                            <ul style="list-style: none; padding: 0;">
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #ef4444; margin-top: 4px;">●</span>
-                                    <span>建立親密關係後，突然提及「穩賺不賠」或「高報酬」投資。</span>
-                                </li>
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #ef4444; margin-top: 4px;">●</span>
-                                    <span>以「為了我們的未來」為由，情緒勒索要求投入資金。</span>
-                                </li>
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #ef4444; margin-top: 4px;">●</span>
-                                    <span>引導至不明的數位貨幣或博弈網站。</span>
-                                </li>
-                            </ul>
-                        </div>
-                        
-                        <div>
-                             <div class="section-title" style="color:#10b981;"><i class="fa-solid fa-shield-halved"></i> 建議採取行動</div>
-                            <ul style="list-style: none; padding: 0;">
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #10b981; margin-top: 4px;">●</span>
-                                    <span>堅持「談天不談錢」，拒絕任何形式的投資邀請。</span>
-                                </li>
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #10b981; margin-top: 4px;">●</span>
-                                    <span>切勿點擊對方提供的任何連結下載APP或註冊帳號。</span>
-                                </li>
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #10b981; margin-top: 4px;">●</span>
-                                    <span>對方若情急或指責您不信任，請直接封鎖。</span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>`;
-            } else if (isEmergencyScam) {
-                // Show High Risk Result (Emotional Blackmail Demo)
-                resultHTML = `
-                <div class="result-content" style="padding: 24px; text-align: left;">
-                    <div class="score-card" style="background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2);">
-                        <div class="score-info">
-                            <i class="fa-solid fa-triangle-exclamation score-icon" style="color: #ef4444;"></i>
-                            <div class="score-text">
-                                <h3 style="color: #ef4444;">情感勒索式詐騙嘗試</h3>
-                                <p>風險等級：極高風險</p>
-                            </div>
-                        </div>
-                        <div class="score-value">
-                            <div class="score-number" style="color: #ef4444;">95<span style="font-size:14px; color:#94a3b8; font-weight:400;">/100</span></div>
-                            <div class="score-label">威脅評分</div>
-                        </div>
-                    </div>
-
-                    <div class="stats-container">
-                        <div class="stat-box danger">
-                            <div class="stat-value">5 項</div>
-                            <div class="stat-label">偵測異常數量</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value">情感勒索</div>
-                            <div class="stat-label">風險模型類別</div>
-                        </div>
-                         <div class="stat-box">
-                            <div class="stat-value">緊急</div>
-                            <div class="stat-label">語氣急迫性</div>
-                        </div>
-                    </div>
-
-                    <div class="report-section">
-                        <div class="section-title"><i class="fa-solid fa-file-contract"></i> 分析摘要</div>
-                        <p class="summary-text">
-                            此對話明確顯示了社交工程詐騙的典型模式。對話者傾向使用親密稱謂（如「寶貝」）試圖快速建立情感連結。隨後，轉向以「緊急突發狀況」（如生病、手術、意外）為由，緊急且帶有強烈情感勒索地要求周轉資金。這種在未建立穩固關係基礎下，突然提出金錢要求的行為，是詐騙集團常見的套路。
-                        </p>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-                        <div>
-                             <div class="section-title" style="color:#ef4444;"><i class="fa-solid fa-bug"></i> 偵測到的異常特徵</div>
-                            <ul style="list-style: none; padding: 0;">
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #ef4444; margin-top: 4px;">●</span>
-                                    <span>使用親密稱謂（如「寶貝」、「親愛的」）快速拉近關係。</span>
-                                </li>
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #ef4444; margin-top: 4px;">●</span>
-                                    <span>以緊急理由（如手術、危急）索取金錢。</span>
-                                </li>
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #ef4444; margin-top: 4px;">●</span>
-                                    <span>金額龐大且語氣急迫。</span>
-                                </li>
-                            </ul>
-                        </div>
-                        
-                        <div>
-                             <div class="section-title" style="color:#10b981;"><i class="fa-solid fa-shield-halved"></i> 建議採取行動</div>
-                            <ul style="list-style: none; padding: 0;">
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #10b981; margin-top: 4px;">●</span>
-                                    <span>切勿向未曾實際見面的網友匯款。</span>
-                                </li>
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #10b981; margin-top: 4px;">●</span>
-                                    <span>保護個人財務資訊，勿透露帳號密碼。</span>
-                                </li>
-                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
-                                    <span style="color: #10b981; margin-top: 4px;">●</span>
-                                    <span>立即封鎖該對象並進行檢舉。</span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>`;
-            } else {
-                // Show Low Risk Result (Safe)
-                resultHTML = `
-                <div class="result-content" style="padding: 24px; text-align: left;">
-                    <div class="score-card">
-                        <div class="score-info">
-                            <i class="fa-solid fa-circle-check score-icon"></i>
-                            <div class="score-text">
-                                <h3>未發現明顯詐騙特徵</h3>
-                                <p>風險等級：低風險</p>
-                            </div>
-                        </div>
-                        <div class="score-value">
-                            <div class="score-number">15<span style="font-size:14px; color:#94a3b8; font-weight:400;">/100</span></div>
-                            <div class="score-label">詐騙指數</div>
-                        </div>
-                    </div>
-
-                    <div class="stats-container">
-                        <div class="stat-box">
-                            <div class="stat-value">0 項</div>
-                            <div class="stat-label">偵測異常數量</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value">正常</div>
-                            <div class="stat-label">風險模型類別</div>
-                        </div>
-                         <div class="stat-box">
-                            <div class="stat-value">平穩</div>
-                            <div class="stat-label">語氣急迫性</div>
-                        </div>
-                    </div>
-
-                    <div class="report-section">
-                        <div class="section-title"><i class="fa-solid fa-file-contract"></i> 分析摘要</div>
-                        <p class="summary-text">
-                            初步分析未發現常見的詐騙關鍵字或誘導模式。對話語氣平穩，內容屬於一般日常交流，無明顯的情緒勒索或緊急性金錢要求。雖然風險較低，但在網路交流中仍建議保持基本的警覺心。
-                        </p>
-                    </div>
-                    
-                    <div class="report-section">
-                         <div class="section-title" style="color:#10b981;"><i class="fa-solid fa-shield-halved"></i> 建議採取行動</div>
-                        <div class="action-suggestion">
-                            <i class="fa-regular fa-lightbulb"></i>
-                            <span>儘管目前評估風險較低，但若對方開始涉及金錢話題或索取個資，請重新進行分析或提高警覺。</span>
-                        </div>
-                    </div>
-                </div>`;
-            }
+                </div>
+            `;
 
             chatAnalysisResult.innerHTML = resultHTML;
         }
     }
 });
+
+class GeminiService {
+    static async analyze(text, apiKey) {
+        const prompt = `
+            You are a fraud detection expert. Analyze the following conversation text for signs of scams, social engineering, or phishing.
+            
+            Text to analyze:
+            "${text}"
+            
+            Return ONLY a valid JSON object with the following structure (do not include markdown ticks):
+            {
+                "riskScore": (integer 0-100, where 100 is definite scam),
+                "riskLevel": (string, e.g., "Low", "Medium", "High", "Critical"),
+                "category": (string, e.g., "Phishing", "Pig Butchering", "Emotional Blackmail", "Safe"),
+                "summary": (string, a concise summary of why this is or isn't a scam, in Traditional Chinese),
+                "anomalies": (array of strings, listing specific suspicious points in Traditional Chinese),
+                "recommendations": (array of strings, advice for the user in Traditional Chinese)
+            }
+        `;
+
+        let selectedModel = 'gemini-1.5-flash'; // Default fallback
+
+        try {
+            // Step 1: Dynamically list available models
+            // This is the most robust way to find what the user has access to
+            const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+            const listResponse = await fetch(listUrl);
+
+            if (listResponse.ok) {
+                const listData = await listResponse.json();
+                if (listData.models) {
+                    // Filter for models that support generateContent
+                    const availableModels = listData.models.filter(m =>
+                        m.supportedGenerationMethods &&
+                        m.supportedGenerationMethods.includes('generateContent')
+                    );
+
+                    // Priority list of preferred models
+                    const preferredOrder = [
+                        'gemini-1.5-flash',
+                        'gemini-1.5-flash-002',
+                        'gemini-1.5-pro',
+                        'gemini-1.0-pro',
+                        'gemini-pro'
+                    ];
+
+                    // Find the best available model
+                    let bestModel = null;
+
+                    // 1. Try exact matches from priority list
+                    for (const pref of preferredOrder) {
+                        const match = availableModels.find(m => m.name.endsWith(pref));
+                        if (match) {
+                            bestModel = match.name;
+                            break;
+                        }
+                    }
+
+                    // 2. If no exact match, try broad matching
+                    if (!bestModel) {
+                        bestModel = availableModels.find(m => m.name.includes('flash'))?.name ||
+                            availableModels.find(m => m.name.includes('pro'))?.name ||
+                            availableModels[0]?.name;
+                    }
+
+                    if (bestModel) {
+                        // The model name from API comes like "models/gemini-1.5-flash"
+                        // We need to keep it as is or strip "models/" if our URL construction adds it.
+                        // Our URL construction below handles it by using the dynamic name directly if it starts with models/
+                        // actually, the API expects models/model-name:generateContent
+                        // so if bestModel is "models/foo", we can use it directly in URL if we adjust logic.
+                        // Ideally: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent
+                        // or https://generativelanguage.googleapis.com/v1beta/models/models/gemini-pro:generateContent ??
+                        // NO. The resource name is "models/gemini-pro". The URL pattern is v1beta/{resourceName}:generateContent
+                        // So v1beta/models/gemini-pro:generateContent is correct.
+                        // So we should NOT strip "models/" if we use the full resource name in the path.
+                        // BUT my code below uses models/${selectedModel}. 
+                        // If selectedModel is "models/gemini-pro", it becomes "models/models/gemini-pro". WRONG.
+                        // So I MUST strip "models/" prefix.
+                        selectedModel = bestModel.replace('models/', '');
+                        console.log(`Dynamically selected model: ${selectedModel}`);
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn("Failed to list models, using default fallback:", e);
+        }
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: prompt
+                    }]
+                }]
+            })
+        });
+
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error?.message || `API Request Failed with model ${selectedModel}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.candidates || data.candidates.length === 0) {
+            throw new Error('No candidates returned from AI');
+        }
+
+        const rawText = data.candidates[0].content.parts[0].text;
+
+        // Clean markdown code blocks if present
+        const jsonString = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+        try {
+            return JSON.parse(jsonString);
+        } catch (e) {
+            throw new Error('Failed to parse AI response');
+        }
+    }
+}
