@@ -790,7 +790,9 @@ body {
 
 /* Responsive */
 /* Responsive */
-@media (max-width: 768px) {
+/* Responsive */
+/* Mobile & Tablet (Up to 1024px) */
+@media (max-width: 1024px) {
     body {
         overflow: auto;
         height: auto;
@@ -806,7 +808,8 @@ body {
         width: 100%;
         padding: 12px 16px;
         flex-direction: column;
-        gap: 16px;
+        /* Stack Logo and Nav */
+        gap: 12px;
         border-right: none;
         border-bottom: var(--glass-border);
         background: rgba(15, 23, 42, 0.95);
@@ -816,12 +819,28 @@ body {
         z-index: 1000;
     }
 
+    /* Global Fluid Images */
+    img,
+    video {
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* Ensure Inputs fit */
+    textarea,
+    input[type="text"] {
+        width: 100%;
+        max-width: 100%;
+    }
+
     .logo-section {
         margin-bottom: 0;
         width: 100%;
+        justify-content: center;
+        /* Center logo on tablet/mobile */
     }
 
-    /* Mobile Navigation: Horizontal Scroll */
+    /* Scrollable Horizontal Nav */
     .nav-menu {
         display: flex;
         flex-direction: row;
@@ -830,9 +849,16 @@ body {
         gap: 12px;
         padding-bottom: 4px;
         scrollbar-width: none;
-        /* Firefox */
         -ms-overflow-style: none;
-        /* IE */
+        justify-content: flex-start;
+        /* Left align nav items */
+    }
+
+    /* Center nav on larger tablets if space allows */
+    @media (min-width: 640px) {
+        .nav-menu {
+            justify-content: center;
+        }
     }
 
     .nav-menu::-webkit-scrollbar {
@@ -848,7 +874,8 @@ body {
         background: rgba(255, 255, 255, 0.05);
         border-radius: 100px;
         padding: 8px 16px;
-        font-size: 13px;
+        font-size: 14px;
+        /* Slightly larger text for touch */
         white-space: nowrap;
     }
 
@@ -864,7 +891,8 @@ body {
     .top-header {
         margin-bottom: 24px;
         justify-content: center;
-        /* Center device info on mobile */
+        display: none;
+        /* Hide device info on mobile to save space */
     }
 
     /* Stack Grids */
@@ -882,11 +910,13 @@ body {
     .upload-box,
     .analysis-box,
     .input-panel {
-        min-height: 300px;
+        min-height: 250px;
+        /* Reduced min-height slightly */
     }
 
     .hero-section h1 {
-        font-size: 32px;
+        font-size: 28px;
+        /* Smaller title */
         padding: 0 16px;
     }
 
@@ -894,7 +924,7 @@ body {
         font-size: 24px;
     }
 
-    /* Fix for inline-styled grids in JS generated content */
+    /* Fix for inline-styled grids */
     div[style*="grid-template-columns: 1fr 1fr"] {
         grid-template-columns: 1fr !important;
     }
