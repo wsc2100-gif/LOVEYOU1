@@ -336,21 +336,189 @@ document.addEventListener('DOMContentLoaded', () => {
             // Dynamic logic checking for keywords
             const textLower = text.toLowerCase();
 
-            // Financial & Urgency Keywords (Trigger High Risk)
-            const highRiskKeywords = ['匯款', '轉帳', '借錢', '投資', '獲利', '帳戶', '凍結', '警示', '手術', '車禍', '10萬', '十萬', '急用'];
+            // Keyword Categories
+            // Keyword Categories
+            // Removed generic '銀行', '帳戶' to prevent false positives in emotional/investment scams
+            const phishingKeywords = ['國泰', '世華', '凍結', '解鎖', '身分證', '健保卡', '證件', '登入', '驗證碼', '異常', '涉嫌', '洗錢', '客服', 'service'];
+            const emotionalKeywords = ['寶貝', '親愛的', '老公', '老婆', '緣分'];
 
-            // Intimacy/Context Keywords (Used for context but don't trigger High Risk alone)
-            const intimacyKeywords = ['寶貝', '親愛的', '老公', '老婆', '緣分'];
+            // Split Financial into Investment vs Emergency
+            const investmentKeywords = ['投資', '獲利', '穩賺', '保證', '規劃', '未來', '銀行', '帳戶', '虛擬貨幣', '比特幣'];
+            const emergencyKeywords = ['匯款', '轉帳', '借錢', '手術', '車禍', '10萬', '十萬', '急用', '應急', '救命'];
 
-            const foundHighRisk = highRiskKeywords.filter(k => textLower.includes(k));
+            // Detection Logic
+            const foundPhishing = phishingKeywords.filter(k => textLower.includes(k));
+            const foundEmotional = emotionalKeywords.filter(k => textLower.includes(k));
+            const foundInvestment = investmentKeywords.filter(k => textLower.includes(k));
+            const foundEmergency = emergencyKeywords.filter(k => textLower.includes(k));
 
-            // Logic: Only high risk if Financial/Urgency keywords are found OR text is extremely long (paste of script)
-            const isRisky = foundHighRisk.length > 0 || text.length > 200;
+            // Scenarios
+            const isPhishing = foundPhishing.length > 0;
+            // Pig Butchering: Intimacy + Investment/Profit talk
+            const isPigButchering = foundEmotional.length > 0 && foundInvestment.length > 0;
+            // Emergency Scam: Intimacy + Urgent money request
+            const isEmergencyScam = (foundEmotional.length > 0 && foundEmergency.length > 0) || (foundEmergency.length > 0 && text.length > 200);
 
             chatAnalysisResult.classList.add('results-mode');
             let resultHTML = '';
 
-            if (isRisky) {
+            if (isPhishing) {
+                // --- SCENARIO 1: Phishing / Fake Bank ---
+                resultHTML = `
+                <div class="result-content" style="padding: 24px; text-align: left;">
+                    <div class="score-card" style="background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2);">
+                        <div class="score-info">
+                            <i class="fa-solid fa-building-columns score-icon" style="color: #ef4444;"></i>
+                            <div class="score-text">
+                                <h3 style="color: #ef4444;">假冒機構/釣魚詐騙</h3>
+                                <p>風險等級：極高風險</p>
+                            </div>
+                        </div>
+                        <div class="score-value">
+                            <div class="score-number" style="color: #ef4444;">98<span style="font-size:14px; color:#94a3b8; font-weight:400;">/100</span></div>
+                            <div class="score-label">威脅評分</div>
+                        </div>
+                    </div>
+
+                    <div class="stats-container">
+                        <div class="stat-box danger">
+                            <div class="stat-value">${Math.max(3, foundPhishing.length)} 項</div>
+                            <div class="stat-label">偵測異常數量</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value">個資竊盜</div>
+                            <div class="stat-label">風險模型類別</div>
+                        </div>
+                         <div class="stat-box">
+                            <div class="stat-value">官方偽冒</div>
+                            <div class="stat-label">語氣急迫性</div>
+                        </div>
+                    </div>
+
+                    <div class="report-section">
+                        <div class="section-title"><i class="fa-solid fa-file-contract"></i> 分析摘要</div>
+                        <p class="summary-text">
+                            此訊息具有「假冒官方機構釣魚」的高度特徵。內容聲稱受害者的「銀行帳戶被凍結」或「涉及非法案件」，利用民眾對法律後果的恐懼心理。接著要求受害者提供極度敏感的個人資料（如身分證正反面、存摺照片），或引導至非官方的電子信箱/連結。這類手法旨在竊取您的身分資料以進行盜用，或詐騙您的銀行憑證。
+                        </p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                        <div>
+                             <div class="section-title" style="color:#ef4444;"><i class="fa-solid fa-bug"></i> 偵測到的異常特徵</div>
+                            <ul style="list-style: none; padding: 0;">
+                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
+                                    <span style="color: #ef4444; margin-top: 4px;">●</span>
+                                    <span>未經核實即聲稱「帳戶凍結」或「涉及刑案」，製造恐慌。</span>
+                                </li>
+                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
+                                    <span style="color: #ef4444; margin-top: 4px;">●</span>
+                                    <span>透過非官方管道（如一般Email、LINE）要求傳送證件照片。</span>
+                                </li>
+                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
+                                    <span style="color: #ef4444; margin-top: 4px;">●</span>
+                                    <span>索取身分證正反面、健保卡等足以冒用身分的完整個資。</span>
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                             <div class="section-title" style="color:#10b981;"><i class="fa-solid fa-shield-halved"></i> 建議採取行動</div>
+                            <ul style="list-style: none; padding: 0;">
+                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
+                                    <span style="color: #10b981; margin-top: 4px;">●</span>
+                                    <span>絕對不要回傳任何證件照片或個人資料。</span>
+                                </li>
+                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
+                                    <span style="color: #10b981; margin-top: 4px;">●</span>
+                                    <span>直接撥打銀行官方客服電話（信用卡背面的號碼）查證，切勿撥打信中提供的號碼。</span>
+                                </li>
+                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
+                                    <span style="color: #10b981; margin-top: 4px;">●</span>
+                                    <span>若已提供資料，請立即報警並通知銀行掛失證件。</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>`;
+            } else if (isPigButchering) {
+                // --- SCENARIO 2: Pig Butchering / Investment Scam (NEW) ---
+                resultHTML = `
+                <div class="result-content" style="padding: 24px; text-align: left;">
+                    <div class="score-card" style="background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2);">
+                        <div class="score-info">
+                            <i class="fa-solid fa-heart-crack score-icon" style="color: #ef4444;"></i>
+                            <div class="score-text">
+                                <h3 style="color: #ef4444;">交友投資詐騙 (殺豬盤)</h3>
+                                <p>風險等級：極高風險</p>
+                            </div>
+                        </div>
+                        <div class="score-value">
+                            <div class="score-number" style="color: #ef4444;">92<span style="font-size:14px; color:#94a3b8; font-weight:400;">/100</span></div>
+                            <div class="score-label">威脅評分</div>
+                        </div>
+                    </div>
+
+                    <div class="stats-container">
+                        <div class="stat-box danger">
+                            <div class="stat-value">${Math.max(4, foundInvestment.length)} 項</div>
+                            <div class="stat-label">偵測異常數量</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value">假交友投資</div>
+                            <div class="stat-label">風險模型類別</div>
+                        </div>
+                         <div class="stat-box">
+                            <div class="stat-value">誘惑</div>
+                            <div class="stat-label">語氣急迫性</div>
+                        </div>
+                    </div>
+
+                    <div class="report-section">
+                        <div class="section-title"><i class="fa-solid fa-file-contract"></i> 分析摘要</div>
+                        <p class="summary-text">
+                            此對話呈現典型「殺豬盤 (Pig Butchering)」特徵。詐騙者利用長時間的情感培養（親密稱呼、規劃未來）來降低您的戒心，隨後將話題引導至「投資獲利」、「為未來存錢」等金錢議題。這種「先談情、後談錢」的手法，目的是誘騙您將資金投入其控制的假投資平台。
+                        </p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                        <div>
+                             <div class="section-title" style="color:#ef4444;"><i class="fa-solid fa-bug"></i> 偵測到的異常特徵</div>
+                            <ul style="list-style: none; padding: 0;">
+                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
+                                    <span style="color: #ef4444; margin-top: 4px;">●</span>
+                                    <span>建立親密關係後，突然提及「穩賺不賠」或「高報酬」投資。</span>
+                                </li>
+                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
+                                    <span style="color: #ef4444; margin-top: 4px;">●</span>
+                                    <span>以「為了我們的未來」為由，情緒勒索要求投入資金。</span>
+                                </li>
+                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
+                                    <span style="color: #ef4444; margin-top: 4px;">●</span>
+                                    <span>引導至不明的數位貨幣或博弈網站。</span>
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                             <div class="section-title" style="color:#10b981;"><i class="fa-solid fa-shield-halved"></i> 建議採取行動</div>
+                            <ul style="list-style: none; padding: 0;">
+                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
+                                    <span style="color: #10b981; margin-top: 4px;">●</span>
+                                    <span>堅持「談天不談錢」，拒絕任何形式的投資邀請。</span>
+                                </li>
+                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
+                                    <span style="color: #10b981; margin-top: 4px;">●</span>
+                                    <span>切勿點擊對方提供的任何連結下載APP或註冊帳號。</span>
+                                </li>
+                                <li style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: flex; align-items: start; gap: 8px;">
+                                    <span style="color: #10b981; margin-top: 4px;">●</span>
+                                    <span>對方若情急或指責您不信任，請直接封鎖。</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>`;
+            } else if (isEmergencyScam) {
                 // Show High Risk Result (Emotional Blackmail Demo)
                 resultHTML = `
                 <div class="result-content" style="padding: 24px; text-align: left;">
@@ -386,7 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="report-section">
                         <div class="section-title"><i class="fa-solid fa-file-contract"></i> 分析摘要</div>
                         <p class="summary-text">
-                            此對話明確顯示了社交工程詐騙的典型模式。對話者一開始使用親密稱謂「寶貝」試圖快速建立情感連結，並在初期便數次嘗試約見或視訊，皆被拒絕。隨後，立即轉向以「狗狗生病要手術很危急」為由，緊急且帶有強烈情感勒索地要求周轉現金10萬元。這種在未建立穩固關係基礎下，突然提出大筆金錢要求的行為，是詐騙集團常見的套路。
+                            此對話明確顯示了社交工程詐騙的典型模式。對話者傾向使用親密稱謂（如「寶貝」）試圖快速建立情感連結。隨後，轉向以「緊急突發狀況」（如生病、手術、意外）為由，緊急且帶有強烈情感勒索地要求周轉資金。這種在未建立穩固關係基礎下，突然提出金錢要求的行為，是詐騙集團常見的套路。
                         </p>
                     </div>
 
