@@ -287,7 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatAnalysisResult = document.getElementById('chat-analysis-result');
 
     // API Key Handling - Simplified (Hidden from UI)
-    const demoApiKey = "AIzaSyDtGDVsKqEHpSDH51DSmWTODbhcupFXetA";
+    const demoApiKey = "AIzaSyCydnwDFKKTO3ejckRqRhrOltlNIjl2nJA";
 
     // We don't need to load it into an input anymore.
     // Logic will check localStorage or use default directly when analyzing.
